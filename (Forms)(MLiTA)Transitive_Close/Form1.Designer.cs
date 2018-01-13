@@ -223,10 +223,10 @@
             this.Visual_CheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             this.Visual_CheckBox.Location = new System.Drawing.Point(128, 573);
             this.Visual_CheckBox.Name = "Visual_CheckBox";
-            this.Visual_CheckBox.Size = new System.Drawing.Size(176, 21);
+            this.Visual_CheckBox.Size = new System.Drawing.Size(179, 21);
             this.Visual_CheckBox.TabIndex = 11;
             this.Visual_CheckBox.TabStop = false;
-            this.Visual_CheckBox.Text = "B-Spain визуализация";
+            this.Visual_CheckBox.Text = "B-Splain визуализация";
             this.Visual_CheckBox.UseVisualStyleBackColor = true;
             this.Visual_CheckBox.CheckedChanged += new System.EventHandler(this.Visual_CheckBox_CheckedChanged);
             // 
@@ -252,7 +252,7 @@
             this.Controls.Add(this.ANode_TextBox);
             this.HelpButton = true;
             this.Name = "Form1";
-            this.Text = "ИТС - 2 v.0.6";
+            this.Text = "ИТС - 2 v.0.7";
             ((System.ComponentModel.ISupportInitialize)(this.Edges_DataGridView)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.Nodes_DataGridView)).EndInit();
             this.ResumeLayout(false);
