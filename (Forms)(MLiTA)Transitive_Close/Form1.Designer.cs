@@ -43,6 +43,7 @@
             this.AddNode_Button = new System.Windows.Forms.Button();
             this.DeleteAllNodes_Button = new System.Windows.Forms.Button();
             this.NodeErrorInput_Label = new System.Windows.Forms.Label();
+            this.Step_CheckBox = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.Edges_DataGridView)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.Nodes_DataGridView)).BeginInit();
             this.SuspendLayout();
@@ -201,11 +202,23 @@
             this.NodeErrorInput_Label.Size = new System.Drawing.Size(0, 17);
             this.NodeErrorInput_Label.TabIndex = 9;
             // 
+            // Step_CheckBox
+            // 
+            this.Step_CheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.Step_CheckBox.AutoSize = true;
+            this.Step_CheckBox.Location = new System.Drawing.Point(15, 573);
+            this.Step_CheckBox.Name = "Step_CheckBox";
+            this.Step_CheckBox.Size = new System.Drawing.Size(62, 21);
+            this.Step_CheckBox.TabIndex = 10;
+            this.Step_CheckBox.Text = "Шаги";
+            this.Step_CheckBox.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(509, 612);
+            this.Controls.Add(this.Step_CheckBox);
             this.Controls.Add(this.NodeErrorInput_Label);
             this.Controls.Add(this.DeleteAllNodes_Button);
             this.Controls.Add(this.AddNode_Button);
@@ -221,7 +234,7 @@
             this.Controls.Add(this.ANode_TextBox);
             this.HelpButton = true;
             this.Name = "Form1";
-            this.Text = "ИТС - 2 v.0.4";
+            this.Text = "ИТС - 2 v.0.6";
             ((System.ComponentModel.ISupportInitialize)(this.Edges_DataGridView)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.Nodes_DataGridView)).EndInit();
             this.ResumeLayout(false);
@@ -246,6 +259,7 @@
         private System.Windows.Forms.Button AddNode_Button;
         private System.Windows.Forms.Button DeleteAllNodes_Button;
         private System.Windows.Forms.Label NodeErrorInput_Label;
+        private System.Windows.Forms.CheckBox Step_CheckBox;
     }
 }
 

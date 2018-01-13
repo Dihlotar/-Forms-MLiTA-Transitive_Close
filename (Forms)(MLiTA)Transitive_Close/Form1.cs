@@ -10,27 +10,19 @@ namespace _Forms__MLiTA_Transitive_Close
     public partial class Form1 : Form
     {
         #region Global
-        /// <summary>
-        /// Ориентация добавляеммого ребра
-        /// </summary>
-        public byte ButtonState;
-        public Graph graph = new Graph();
+        Graph graph;
         /// <summary>
         /// Список точек графа
         /// </summary>
         List<string> nodesList = new List<string>();
+        List<string> edges = new List<string>();
         #endregion
 
         public Form1()
         {
             InitializeComponent();
 
-            //ActiveForm.Width= 527;
-            //ActiveForm.Height = 659;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
-
-            ButtonState = 0;
-            //ChangeArrowDirrection();
 
             Edges_DataGridView.AllowUserToAddRows = false;
             Edges_DataGridView.ColumnHeadersVisible = false;
@@ -58,20 +50,26 @@ namespace _Forms__MLiTA_Transitive_Close
             if ((ANode_TextBox.Text != "") && (BNode_TextBox.Text != "") && NodeExist(ANode_TextBox.Text) && NodeExist(BNode_TextBox.Text))
             {
                 EdgeErrorInput_Label.Text = "";
-                Edges_DataGridView.Rows.Add(ANode_TextBox.Text + Arrow_Label.Text + BNode_TextBox.Text);
+                edges.Add(ANode_TextBox.Text + Arrow_Label.Text + BNode_TextBox.Text);
+                Edges_DataGridView.Rows.Add(edges[edges.Count - 1]);
                 ANode_TextBox.Text = "";
                 BNode_TextBox.Text = "";
             }
-            else
-                EdgeErrorInput_Label.Text = "Неккоректное имя вершины";
-            ANode_TextBox.Focus();
 
-            if ((graph.Created) && (graph.Visible))
+            else
             {
-                //CreateGraph_Button_Click(sender, e);
-                graph.AddEdge(Edges_DataGridView.Rows[Edges_DataGridView.Rows.Count - 1], true);
-                //graph.DrawEdge(Edges_DataGridView.Rows.Count - 1);
+                EdgeErrorInput_Label.Text = "Неккоректное имя вершины";
+                ANode_TextBox.Focus();
+                return;
             }
+
+            if ((graph != null) && (graph.Created) && (graph.Visible))
+                if (Step_CheckBox.Checked)
+                    graph.AddEdgeStep(edges[edges.Count - 1]);
+                else
+                    graph.AddEdge(edges[edges.Count - 1]);
+
+            ANode_TextBox.Focus();
         }
 
         /// <summary>
@@ -107,17 +105,17 @@ namespace _Forms__MLiTA_Transitive_Close
         /// <summary>
         /// Смена ориентации ребра (Вырезано)
         /// </summary>
-        private void ChangeArrowDirrection()
-        {
-            ButtonState++;
-            ButtonState %= 3;
-            switch (ButtonState)
-            {
-                case 0: Arrow_Label.Text = "--->"; break;
-                case 1: Arrow_Label.Text = "<---"; break;
-                case 2: Arrow_Label.Text = "<-->"; break;
-            }
-        }
+        //private void ChangeArrowDirrection()
+        //{
+        //    ButtonState++;
+        //    ButtonState %= 3;
+        //    switch (ButtonState)
+        //    {
+        //        case 0: Arrow_Label.Text = "--->"; break;
+        //        case 1: Arrow_Label.Text = "<---"; break;
+        //        case 2: Arrow_Label.Text = "<-->"; break;
+        //    }
+        //}
 
         /// <summary>
         /// Обработка одного ребера из файла
@@ -151,14 +149,20 @@ namespace _Forms__MLiTA_Transitive_Close
             str = mas[0] + (str.Contains("<") ? "<" : "-") + "--" + (str.Contains(">") ? ">" : "-") + mas[mas.Length - 1];
 
             Edges_DataGridView.Rows.Add(str);
+            edges.Add(str);
         }
 
         private void Edges_DataGridView_CellMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
+            edges.RemoveAt(e.RowIndex);
             Edges_DataGridView.Rows.RemoveAt(e.RowIndex);
+            if (graph != null)
+            {
+                graph.Close();
 
-            if ((graph.Created) && (graph.Visible))
-                CreateGraph_Button_Click(sender, e);
+                if ((graph.Created) && (graph.Visible))
+                    CreateGraph_Button_Click(sender, e);
+            }
         }
 
         private void Arrow_Label_Click(object sender, EventArgs e)
@@ -176,9 +180,14 @@ namespace _Forms__MLiTA_Transitive_Close
         {
             if (e.KeyData == Keys.Delete)
             {
+                edges.RemoveAt(Edges_DataGridView.Rows.IndexOf(Edges_DataGridView.CurrentRow));
                 Edges_DataGridView.Rows.RemoveAt(Edges_DataGridView.Rows.IndexOf(Edges_DataGridView.CurrentRow));
-                if ((graph.Created) && (graph.Visible))
-                    CreateGraph_Button_Click(sender, e);
+                if (graph != null)
+                {
+                    graph.Close();
+                    if ((graph.Created) && (graph.Visible))
+                        CreateGraph_Button_Click(sender, e);
+                }
             }
         }
 
@@ -211,7 +220,7 @@ namespace _Forms__MLiTA_Transitive_Close
                     if ((graph.Created) && (graph.Visible))
                         CreateGraph_Button_Click(sender, e);
                 }
-                catch (Exception ex) { throw ex; }
+                catch { }
             }
         }
 
@@ -224,6 +233,7 @@ namespace _Forms__MLiTA_Transitive_Close
         private void DeleteAll_Button_Click(object sender, EventArgs e)
         {
             Edges_DataGridView.Rows.Clear();
+            edges.Clear();
             ANode_TextBox.Focus();
 
             if ((graph.Created) && (graph.Visible))
@@ -232,14 +242,18 @@ namespace _Forms__MLiTA_Transitive_Close
 
         private void CreateGraph_Button_Click(object sender, EventArgs e)
         {
-            if ((Nodes_DataGridView.Rows.Count != 0) && ((!graph.Created) || (!graph.Visible)))
+            if ((Nodes_DataGridView.Rows.Count != 0) && ((graph == null) || (!graph.Created) || (!graph.Visible)))
             {
-                graph = new Graph();
+                graph = new Graph(nodesList, edges);
                 graph.Show();
             }
 
             if (Nodes_DataGridView.Rows.Count != 0)
-                graph.Rewrite(Edges_DataGridView.Rows, nodesList);
+            {
+                graph.Graph_PictureBox.Refresh();
+                graph.TGraph_PictureBox.Refresh();
+            }
+            //graph.Rewrite(Edges_DataGridView.Rows, nodesList);
         }
 
         //Nodes
@@ -259,7 +273,7 @@ namespace _Forms__MLiTA_Transitive_Close
 
             Node_TextBox.Focus();
 
-            if ((graph.Created) && (graph.Visible))
+            if ((graph != null) && (graph.Created) && (graph.Visible))
                 graph.Close();
         }
 
@@ -282,7 +296,7 @@ namespace _Forms__MLiTA_Transitive_Close
             DeleteEdgesWithNode(e.RowIndex);
             nodesList.RemoveAt(e.RowIndex);
             Nodes_DataGridView.Rows.RemoveAt(e.RowIndex);
-            if ((graph.Created) && (graph.Visible))
+            if ((graph != null) && (graph.Created) && (graph.Visible))
                 graph.Close();
         }
 
@@ -299,7 +313,7 @@ namespace _Forms__MLiTA_Transitive_Close
                 DeleteEdgesWithNode(i);
                 nodesList.RemoveAt(i);
                 Nodes_DataGridView.Rows.RemoveAt(i);
-                if ((graph.Created) && (graph.Visible))
+                if ((graph != null) && (graph.Created) && (graph.Visible))
                     graph.Close();
             }
         }
@@ -307,11 +321,12 @@ namespace _Forms__MLiTA_Transitive_Close
         private void DeleteAllNodes_Button_Click(object sender, EventArgs e)
         {
             nodesList.Clear();
+            edges.Clear();
             Edges_DataGridView.Rows.Clear();
             Nodes_DataGridView.Rows.Clear();
             Node_TextBox.Focus();
 
-            if ((graph.Created) && (graph.Visible))
+            if ((graph != null) && (graph.Created) && (graph.Visible))
                 graph.Close();
         }
 
@@ -322,6 +337,7 @@ namespace _Forms__MLiTA_Transitive_Close
                 if (Edges_DataGridView.Rows[i].Cells[0].Value.ToString().Contains(node))
                 {
                     Edges_DataGridView.Rows.RemoveAt(i);
+                    edges.RemoveAt(i);
                     i--;
                 }
         }

@@ -7,10 +7,8 @@ namespace _Forms__MLiTA_Transitive_Close
     public partial class TransClose : Form
     {
         #region Global
-        List<string> edges;
         List<string> nodesList;
-        bool[,] Matrix;
-        bool[] IsBlack;
+        ulong[] matrix;
         #endregion
 
         /// <summary>
@@ -18,12 +16,12 @@ namespace _Forms__MLiTA_Transitive_Close
         /// </summary>
         /// <param name="edges">Список ребер</param>
         /// <param name="nodesList">Список Вершин</param>
-        public TransClose(List<string> edges, List<string> nodesList)
+        public TransClose(List<string> nodesList, ulong[] matrix)
         {
             InitializeComponent();
 
+            this.matrix = matrix;
             this.nodesList = nodesList;
-            this.edges = edges;
 
             Trans_DataGridView.AllowUserToAddRows = false;
             Trans_DataGridView.ReadOnly = true;
@@ -38,11 +36,13 @@ namespace _Forms__MLiTA_Transitive_Close
             Trans_DataGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             Trans_DataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             //Trans_DataGridView.RowHeadersWidth = 100;
-            this.MinimumSize = new System.Drawing.Size(25, 15);
+            this.MinimumSize = new System.Drawing.Size(180, 180);
             this.MaximumSize = Screen.PrimaryScreen.Bounds.Size;
+
+            DrawBase();
         }
 
-        private void Draw()
+        private void DrawBase()
         {
             const int CellSize = 40;
             Trans_DataGridView.Columns.Clear();
@@ -62,60 +62,22 @@ namespace _Forms__MLiTA_Transitive_Close
 
             for (int i = 0; i < nodesList.Count; i++)
                 for (int k = 0; k < nodesList.Count; k++)
-                    Trans_DataGridView.Rows[i].Cells[k].Value = (Matrix[i, k]) ? "1" : "0";
+                    Trans_DataGridView.Rows[i].Cells[k].Value = ((matrix[i] >> k) & 1).ToString();
 
             FormSizeChanged(true);
         }
 
-        public void EdgeAdded(string edge)
+        public void DrawRow(int row, ulong value)
         {
-            string[] nodes = edge.Split(new char[] { '<', '-', '>' });
-            //edges.Add(edge);
-            Trans_DataGridView.Rows[nodesList.FindIndex(x => x == nodes[0])].Cells[nodesList.FindIndex(x => x == nodes[nodes.Length - 1])].Value = "1";
-
+            matrix[row] = value;
             for (int i = 0; i < nodesList.Count; i++)
-                if (ToMatrix(i, nodesList.FindIndex(x => x == nodes[0])))
-                    for (int k = 0; k < nodesList.Count; k++)
-                        Trans_DataGridView.Rows[i].Cells[k].Value = (ToMatrix(i, k) || ToMatrix(nodesList.FindIndex(x => x == nodes[0]), k) || ToMatrix(nodesList.FindIndex(y => y == nodes[nodes.Length - 1]), k)) ? "1" : "0";
-            //Matrix[i, k] = Matrix[i, k] || Matrix[nodesList.FindIndex(x => x == nodes[0]), k] || Matrix[nodesList.FindIndex(x => x == nodes[nodes.Length - 1]), k];
+                Trans_DataGridView.Rows[row].Cells[i].Value = ((value >> i) & 1).ToString();
         }
 
-        /// <summary>
-        /// Перевод в матричное представление
-        /// </summary>
-        /// <param name="rowIndex">Индекс строки</param>
-        /// <param name="columnIndex">Индекс столбца</param>
-        private bool ToMatrix(int rowIndex, int columnIndex)
+        public void DrawEdge(int row, int column)
         {
-            if (Trans_DataGridView.Rows[rowIndex].Cells[columnIndex].Value.ToString() == "1")
-                return true;
-            return false;
-        }
-
-        public void Measurement(List<string> nodesList, List<string> edges)
-        {
-            this.nodesList = nodesList;
-            this.edges = edges;
-
-            Matrix = new bool[nodesList.Count, nodesList.Count];
-
-            for (int i = 0; i < nodesList.Count; i++)
-            {
-                IsBlack = new bool[nodesList.Count];
-                if (!IsBlack[i])
-                    Rec(i, i);
-            }
-
-            Draw();
-        }
-
-        private void Rec(int i, int j)
-        {
-            IsBlack[j] = true;
-            Matrix[i, j] = true;
-            for (int k = 0; k < nodesList.Count; k++)
-                if ((!IsBlack[k]) && (edges.Contains(nodesList[j] + "->-" + nodesList[k])))
-                    Rec(i, k);
+            Trans_DataGridView.Rows[row].Cells[column].Value = "1";
+            matrix[row] |= ((ulong)1 << column);
         }
 
         private void Trans_DataGridView_ColumnAdded(object sender, DataGridViewColumnEventArgs e)
@@ -138,15 +100,15 @@ namespace _Forms__MLiTA_Transitive_Close
                 this.Size = new System.Drawing.Size(size.Width + uselessWidth, size.Height + uselessHeight);
 
             Trans_DataGridView.Update();
-            //if (this.Size.Width < size.Width)
-            //    Trans_DataGridView.Size = new System.Drawing.Size(this.Width - uselessWidth, Trans_DataGridView.Width);
-            //else
-            //    Trans_DataGridView.Size = size;
+            if (this.Size.Width < size.Width)
+                Trans_DataGridView.Size = new System.Drawing.Size(this.Width - uselessWidth, Trans_DataGridView.Width);
+            else
+                Trans_DataGridView.Size = size;
 
-            //if (this.Size.Height < size.Height)
-            //    Trans_DataGridView.Size = new System.Drawing.Size(Trans_DataGridView.Size.Width, this.Height - uselessHeight);
-            //else
-            //    Trans_DataGridView.Size = new System.Drawing.Size(Trans_DataGridView.Size.Width, size.Height);
+            if (this.Size.Height < size.Height)
+                Trans_DataGridView.Size = new System.Drawing.Size(Trans_DataGridView.Size.Width, this.Height - uselessHeight);
+            else
+                Trans_DataGridView.Size = new System.Drawing.Size(Trans_DataGridView.Size.Width, size.Height);
         }
     }
 }

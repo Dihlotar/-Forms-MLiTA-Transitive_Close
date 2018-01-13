@@ -2,199 +2,412 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Threading;
 
-namespace _Forms__MLiTA_Transitive_Close {
-	public partial class Graph: Form {
-		#region Global
-		/// <summary>
-		/// Список точек графа
-		/// </summary>
-		List<string> nodesList;
-		/// <summary>
-		/// Координаты точек графа
-		/// </summary>
-		List<PointF> nodesCoords;
-		/// <summary>
-		/// Ребра графа
-		/// </summary>
-		List<string> edges;
+namespace _Forms__MLiTA_Transitive_Close
+{
+    public partial class Graph : Form
+    {
+        #region Global
+        TransClose trc;
+        Graphics graph;
+        static Graphics tgraph;
+        GraphInfo gi;
+        StepArgs sa = new StepArgs();
+        #endregion
 
-		bool isClosing = false;
+        private struct GraphInfo
+        {
+            public List<string> nodesList;
+            public List<PointF> nodesCoords;
+            public List<string> edges;
+            public ulong[] matrix;
 
-		Graphics graph;
+            public GraphInfo(List<string> nodesList, List<string> edges)
+            {
+                this.nodesList = nodesList;
+                this.edges = edges;
+                matrix = new ulong[nodesList.Count];
+                nodesCoords = new List<PointF>(nodesList.Count);
 
-		/// <summary>
-		/// Для вызова конструктора транзитивного замыкания
-		/// </summary>
-		public TransClose trc;
-		#endregion
+                MatrixReflex();
+                MeasureMatrix();
+                MeasureCoords();
+            }
+
+            /// <summary>
+            /// Единицы по главной диагонали
+            /// </summary>
+            private void MatrixReflex()
+            {
+                for (int i = 0; i < matrix.Length; i++)
+                    matrix[i] = (ulong)1 << i;
+            }
+
+            /// <summary>
+            /// Расчет координат точек на графе
+            /// </summary>
+            private void MeasureCoords()
+            {
+                Point center = new Point(200, 200);
+                double fi = 2 * Math.PI / nodesList.Count;
+                int scale = 150;
+
+                for (int i = 0; i < nodesList.Count; i++)
+                {
+                    nodesCoords.Add(new PointF((float)Math.Cos(fi * i) * scale + center.X, (float)Math.Sin(fi * i) * scale + center.Y));
+                }
+            }
+
+            /// <summary>
+            /// Расчет матрицы смежности
+            /// </summary>
+            private void MeasureMatrix()
+            {
+                foreach (string edge in edges)
+                {
+                    Indexes indexes = AddEdge(edge);
+                    for (int k = 0; k < nodesList.Count; k++)
+                        AddSubEdge(indexes, k);
+                }
+            }
+
+            /// <summary>
+            /// Добавить ребро в матрицу
+            /// </summary>
+            /// <param name="edge">Добавляемое ребро</param>
+            /// <returns></returns>
+            public Indexes AddEdge(string edge)
+            {
+                string[] nodes = edge.Split(new char[] { '-', '>' });
+                Indexes i = new Indexes(nodesList.IndexOf(nodes[0]), nodesList.IndexOf(nodes[nodes.Length - 1]));
+
+                matrix[i.strartIndex] |= (ulong)1 << i.endIndex;
+
+                return i;
+            }
+
+            /// <summary>
+            /// Добавление одного из новообразовнных ребер из других вершин в матрицу
+            /// </summary>
+            /// <param name="indexes">Индексы начальной и конечной точки ребра</param>
+            /// <param name="index">Индекс обрабатываемой вершины</param>
+            public bool AddSubEdge(Indexes indexes, int index)
+            {
+                if (index != indexes.endIndex && (((matrix[index] >> indexes.strartIndex) & 1) == 1))
+                {
+                    matrix[index] |= matrix[indexes.endIndex];
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        private struct Indexes
+        {
+            public int strartIndex;
+            public int endIndex;
+
+            public Indexes(int startIndex, int endIndex)
+            {
+                this.strartIndex = startIndex;
+                this.endIndex = endIndex;
+            }
+        }
+
+        private struct StepArgs
+        {
+            public int step;
+            public bool isStep;
+            public string edge;
+            public string[] nodes;
+            public Indexes ixes;
+            public int xEntry;
+
+            public StepArgs(string edge)
+            {
+                step = 0;
+                isStep = false;
+                this.edge = edge;
+                nodes = new string[2];
+                ixes = new Indexes();
+                xEntry = 0;
+            }
+        }
+
+        public Graph(List<string> nodesList, List<string> edges)
+        {
+            InitializeComponent();
+
+            this.Size = new Size(1200, 700);
+            this.StartPosition = FormStartPosition.Manual;
+            //this.Location = new Point(Form1.ActiveForm.Location.X + Form1.ActiveForm.Width, Form1.ActiveForm.Location.Y);
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            //this.Size = new Size(500, 450);
+
+            gi = new GraphInfo(nodesList, edges);
+            trc = new TransClose(nodesList, gi.matrix);
+            trc.Show();
+        }
+
+        private void Graph_PictureBox_Paint(object sender, PaintEventArgs e)
+        {
+            graph = e.Graphics;
+
+            for (int i = 0; i < gi.edges.Count; i++)
+            {
+                string[] nodes = gi.edges[i].Split(new char[] { '-', '>' });
+                DrawEdge(gi.nodesList.IndexOf(nodes[0]), gi.nodesList.IndexOf(nodes[nodes.Length - 1]), graph);
+            }
+            DrawNodes(graph);
+        }
+
+        private void TGraph_PictureBox_Paint(object sender, PaintEventArgs e)
+        {
+            tgraph = e.Graphics;
 
 
+            for (int i = 0; i < gi.matrix.Length; i++)
+            {
+                ulong num = gi.matrix[i];
+                int k = 0;
+                while (num != 0)
+                {
+                    if ((i != k) && ((num & 1) == 1))
+                        DrawEdge(i, k, tgraph);
+                    k++;
+                    num = num >> 1;
+                }
+            }
+            DrawNodes(tgraph);
+        }
 
-		public Graph() {
-			InitializeComponent();
+        private void Graph_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (trc != null)
+            {
+                trc.Close();
+                trc = null;
+            }
+        }
 
-			this.Size = new Size(700, 700);
-			this.StartPosition = FormStartPosition.Manual;
-			//this.Location = new Point(Form1.ActiveForm.Location.X + Form1.ActiveForm.Width, Form1.ActiveForm.Location.Y);
-			this.FormBorderStyle = FormBorderStyle.FixedSingle;
-			//this.Size = new Size(500, 450);
-		}
+        private void DrawNodes(Graphics graph) //Разобраться с названиями
+        {
+            const int radius = 2;
+            const int strCorrect = 5;
+            Pen pen = new Pen(Color.Black);
+            SolidBrush brush = new SolidBrush(Color.Black);
+            Font font = new Font(FontFamily.GenericMonospace, 10);
 
-		private void Graph_PictureBox_Paint(object sender, PaintEventArgs e) {
-			Pen pen = new Pen(Color.MediumAquamarine, 3);
-			SolidBrush brush = new SolidBrush(Color.Blue);
-			Font font = new Font(FontFamily.GenericMonospace, 10);
-			graph = e.Graphics;
-			const int radius = 2;
-			const int ArrowLength = 20;
-			const int ArrowAngle = 15;
-			float ArrowWidth = ArrowLength * (float)Math.Tan(ArrowAngle * Math.PI / 180);
+            for (int i = 0; i < gi.nodesCoords.Count; i++)
+            {
+                float xCorrect = strCorrect * ((gi.nodesCoords[i].X < 0) ? -1 : 1);
+                float yCorrect = strCorrect * ((gi.nodesCoords[i].Y < 0) ? -1 : 1);
+                graph.DrawEllipse(pen, gi.nodesCoords[i].X - radius, gi.nodesCoords[i].Y - radius, 2 * radius, 2 * radius);
+                graph.DrawString(gi.nodesList[i], font, brush, gi.nodesCoords[i].X + xCorrect, gi.nodesCoords[i].Y + yCorrect); //Лажа
+            }
 
-			foreach (string i in edges) {
-				string[] args = i.Split('-');
-				PointF[] nodes = new PointF[] { nodesCoords[nodesList.FindIndex(x => x == args[0])], nodesCoords[nodesList.FindIndex(y => y == args[2])] };
-				graph.DrawLine(pen, nodes[0], nodes[1]);
+            pen.Dispose();
+            brush.Dispose();
+            font.Dispose();
+        }
 
-				Point center = new Point(200, 200);//new Point(ActiveForm.Width / 2, ActiveForm.Height / 2);
-				nodes[0] = new PointF(nodes[0].X - center.X, nodes[0].Y - center.Y);
-				nodes[1] = new PointF(nodes[1].X - center.X, nodes[1].Y - center.Y);
+        public void DrawEdge(int indexOfStart, int indexOfEnd, Graphics graph)
+        {
+            Pen pen = new Pen(Color.MediumAquamarine, 2);
+            SolidBrush brush = new SolidBrush(Color.Blue);
 
-				PointF[] C = new PointF[2];
-				float fi = (float)Math.Atan((nodes[1].Y - nodes[0].Y) / (nodes[1].X - nodes[0].X));
+            const int ArrowLength = 20;
+            const int ArrowAngle = 10;
+            float ArrowWidth = ArrowLength * (float)Math.Tan(ArrowAngle * Math.PI / 180);
 
-				if (nodes[0].X > nodes[1].X)
-					fi += (float)Math.PI;
-				C[1] = new PointF(nodes[1].X - ArrowLength * (float)Math.Cos(fi), nodes[1].Y - ArrowLength * (float)Math.Sin(fi)); //O
-				C[0] = new PointF(C[1].X + ArrowWidth * (float)Math.Sin(fi), C[1].Y - ArrowWidth * (float)Math.Cos(fi));
-				C[1] = new PointF(C[1].X - ArrowWidth * (float)Math.Sin(fi), C[1].Y + ArrowWidth * (float)Math.Cos(fi));
+            PointF[] nodes = new PointF[] { gi.nodesCoords[indexOfStart], gi.nodesCoords[indexOfEnd] };
+            graph.DrawLine(pen, nodes[0], nodes[1]);
 
-				C[0] = new PointF(center.X + C[0].X, center.Y + C[0].Y);
-				C[1] = new PointF(center.X + C[1].X, center.Y + C[1].Y);
-				nodes[0] = new PointF(center.X + nodes[0].X, center.Y + nodes[0].Y);
-				nodes[1] = new PointF(center.X + nodes[1].X, center.Y + nodes[1].Y);
+            Point center = new Point(200, 200);
+            nodes[0] = new PointF(nodes[0].X - center.X, nodes[0].Y - center.Y);
+            nodes[1] = new PointF(nodes[1].X - center.X, nodes[1].Y - center.Y);
 
-				graph.FillPolygon(brush, new PointF[] { nodes[1], C[0], C[1] });
-			}
+            PointF[] C = new PointF[2];
+            float fi = (float)Math.Atan((nodes[1].Y - nodes[0].Y) / (nodes[1].X - nodes[0].X));
 
-			pen.Color = Color.Black;
-			brush = new SolidBrush(Color.Black);
-			for (int i = 0; i < nodesCoords.Count; i++) {
-				graph.DrawEllipse(pen, nodesCoords[i].X - radius, nodesCoords[i].Y - radius, 2 * radius, 2 * radius);
-				graph.DrawString(nodesList[i], font, brush, nodesCoords[i]);
-			}
+            if (nodes[0].X > nodes[1].X)
+                fi += (float)Math.PI;
+            C[1] = new PointF(nodes[1].X - ArrowLength * (float)Math.Cos(fi), nodes[1].Y - ArrowLength * (float)Math.Sin(fi)); //O
+            C[0] = new PointF(C[1].X + ArrowWidth * (float)Math.Sin(fi), C[1].Y - ArrowWidth * (float)Math.Cos(fi));
+            C[1] = new PointF(C[1].X - ArrowWidth * (float)Math.Sin(fi), C[1].Y + ArrowWidth * (float)Math.Cos(fi));
 
-			pen.Dispose();
-			brush.Dispose();
-			font.Dispose();
-		}
+            C[0] = new PointF(center.X + C[0].X, center.Y + C[0].Y);
+            C[1] = new PointF(center.X + C[1].X, center.Y + C[1].Y);
+            nodes[0] = new PointF(center.X + nodes[0].X, center.Y + nodes[0].Y);
+            nodes[1] = new PointF(center.X + nodes[1].X, center.Y + nodes[1].Y);
 
-		/// <summary>
-		/// Преобразование массива строк DataGridView к списку и вычисление координат вершин
-		/// </summary>
-		/// <param name="rows">Массив строк</param>
-		/// /// <param name="nodesList">Список вершин</param>
-		public void Rewrite(DataGridViewRowCollection rows, List<string> nodesList) {
-			this.nodesList = nodesList;
-			nodesCoords = new List<PointF>();
-			edges = new List<string>();
+            graph.FillPolygon(brush, new PointF[] { nodes[1], C[0], C[1] });
 
-			for (int i = 0; i < rows.Count; i++) {
-				AddEdge(rows[i], false);
-			}
+            pen.Dispose();
+            brush.Dispose();
+        }
 
+        public void AddEdge(string edge)
+        {
+            Indexes indexes = gi.AddEdge(edge);
+            gi.edges.Add(edge);
+            trc.DrawEdge(indexes.strartIndex, indexes.endIndex);
 
-			Point center = new Point(200, 200); //ActiveForm.Width / 2, ActiveForm.Height / 2);
-			double fi = 2 * Math.PI / nodesList.Count;
-			int scale = 150;
+            for (int i = 0; i < gi.nodesList.Count; i++)
+                if (gi.AddSubEdge(indexes, i))
+                    trc.DrawRow(i, gi.matrix[i]);
 
-			for (int i = 0; i < nodesList.Count; i++) {
-				nodesCoords.Add(new PointF((float)Math.Cos(fi * i) * scale + center.X, (float)Math.Sin(fi * i) * scale + center.Y));
-			}
+            Graph_PictureBox.Refresh();
+            TGraph_PictureBox.Refresh();
+        }
 
-			if ((trc == null) || (!trc.Visible)) {
-				trc = new TransClose(edges, nodesList);
-				trc.FormClosing+=(a, b) => {
-					if (!isClosing) {
-						isClosing=true;
-						b.Cancel=true;
-						this.Close();
-					}
-				};
-				trc.Show();
-			}
+        #region Steps
+        private void NextStep_Button_Click(object sender, EventArgs e)
+        {
+            if (sa.isStep)
+            {
+                if (sa.step == 1)
+                {
+                    AddEdgeStep_1();
+                    return;
+                }
 
-			if (nodesList.Count != 0)
-				trc.Measurement(nodesList, edges);
+                if ((sa.step - 2) == (gi.nodesList.Count))
+                {
+                    AddEdge_F();
+                    return;
+                }
 
-			Graph_PictureBox.Refresh();
-		}
+                switch (sa.xEntry)
+                {
+                    case -1: AddEdge_X_0(sa.step - 2); break;
+                    case 0: AddEdge_X(sa.step - 2); break;
+                    case 1: AddEdge_X_1(sa.step - 2); break;
+                    case 2: AddEdge_X_2(sa.step - 2); break;
+                }
+            }
+        }
 
-		private void Graph_FormClosed(object sender, FormClosedEventArgs e) {
-			if (trc!=null) {
-				trc.Close();
-				trc = null;
-			}
+        public void AddEdgeStep(string edge)
+        {
+            if (!sa.isStep)
+            {
+                sa.isStep = true;
+                sa.step = 0;
+                sa.edge = edge;
+                NextStep_Button.Visible = true;
+                AddEdgeStep_0();
+            }
+        }
 
-		}
+        private void AddEdgeStep_0()
+        {
+            sa.nodes = sa.edge.Split(new char[] { '-', '>' });
+            sa.ixes = new Indexes(gi.nodesList.IndexOf(sa.nodes[0]), gi.nodesList.IndexOf(sa.nodes[sa.nodes.Length - 1]));
+            ulong arg1 = (ulong)1 << sa.ixes.endIndex;
+            ulong arg2 = gi.matrix[sa.ixes.strartIndex] | arg1;
 
-		/// <summary>
-		/// Добавляет ребро в список
-		/// </summary>
-		/// <param name="row"></param>
-		public void AddEdge(DataGridViewRow row, bool isRefresh) {
-			string val = row.Cells[0].Value.ToString();
-			string[] str = val.Split(new char[] { '<', '-', '>' });
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "Применяем побитовое ИЛИ: " + DecToBin(gi.matrix[sa.ixes.strartIndex]) + " | " + DecToBin(arg1) + " = " + DecToBin(arg2) + " (" + arg2.ToString() + " в 10 с/с).\r\n\r\n");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "1 сдвигаем на " + sa.ixes.endIndex.ToString() + " бит влево, 1 << " + sa.ixes.endIndex.ToString() + " = " + DecToBin(arg1) + " (" + arg1.ToString() + " в 10 с/с).\r\n");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "В двоичной с/с: " + DecToBin(gi.matrix[sa.ixes.strartIndex]) + " (0-вой бит двоичной записи соответствует 0-вому столбцу матрицы).\r\n");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Возьмем значение строки, соответствующей вершине '" + sa.nodes[0] + "': " + gi.matrix[sa.ixes.strartIndex].ToString() + ".\r\n");
 
-			if (val.IndexOf('>') != -1)
-				if (val.IndexOf('<') != -1)
-					edges.Add(str[0] + "-+-" + str[str.Length - 1]);
-				else
-					edges.Add(str[0] + "->-" + str[str.Length - 1]);
-			else
-				edges.Add(str[str.Length - 1] + "-<-" + str[0]);
+            sa.step++;
+        }
 
-			if ((nodesList.Count != 0) && isRefresh)
-				trc.EdgeAdded(val);
+        private void AddEdgeStep_1()
+        {
+            sa.ixes = gi.AddEdge(sa.edge);
 
-			if (isRefresh)
-				Graph_PictureBox.Refresh();
-		}
+            trc.DrawEdge(sa.ixes.strartIndex, sa.ixes.endIndex);
+            Graph_PictureBox.Refresh();
+            TGraph_PictureBox.Refresh();
 
-		public void DrawEdge(int edgeIndex) {
-			Pen pen = new Pen(Color.MediumAquamarine, 3);
-			SolidBrush brush = new SolidBrush(Color.Blue);
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "Теперь будем добавлять вершинам, из которых есть путь в '" + sa.nodes[0] + "', пути, ведущие из '" + sa.nodes[sa.nodes.Length - 1] + "'.\r\n\r\n");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Таким образом установлен путь из '" + sa.nodes[0] + "' в '" + sa.nodes[sa.nodes.Length - 1] + "'.\r\n");
 
-			const int ArrowLength = 20;
-			const int ArrowAngle = 15;
-			float ArrowWidth = ArrowLength * (float)Math.Tan(ArrowAngle * Math.PI / 180);
+            sa.step++;
+        }
 
-			string[] args = edges[edgeIndex].Split('-');
-			PointF[] nodes = new PointF[] { nodesCoords[nodesList.FindIndex(x => x == args[0])], nodesCoords[nodesList.FindIndex(y => y == args[2])] };
-			graph.DrawLine(pen, nodes[0], nodes[1]);
+        private void AddEdge_X(int i)
+        {
+            if (i != sa.ixes.endIndex)
+            {
+                ulong arg1 = gi.matrix[i] >> sa.ixes.strartIndex;
+                ulong arg2 = arg1 & 1;
 
-			Point center = new Point(200, 200); //ActiveForm.Width / 2, ActiveForm.Height / 2);
-			nodes[0] = new PointF(nodes[0].X - center.X, nodes[0].Y - center.Y);
-			nodes[1] = new PointF(nodes[1].X - center.X, nodes[1].Y - center.Y);
+                Step_TextBox.Text = Step_TextBox.Text.Insert(0, "Применим к результату и к 1 побитовое И: " + DecToBin(arg1) + " & 1 = " + arg2.ToString() + "\r\n\r\n");
+                Step_TextBox.Text = Step_TextBox.Text.Insert(0, "Сдвинем его на " + sa.ixes.strartIndex + " битов вправо. " + DecToBin(gi.matrix[i]) + " >> " + sa.ixes.strartIndex + " = " + DecToBin(arg1) + " (" + arg1.ToString() + " в 10 с/с).\r\n");
+                Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Возьмем значение, соответствующее вершине '" + gi.nodesList[i] + "': " + DecToBin(gi.matrix[i]) + " (" + gi.matrix[i].ToString() + " в 10 с/с).\r\n");
 
-			PointF[] C = new PointF[2];
-			float fi = (float)Math.Atan((nodes[1].Y - nodes[0].Y) / (nodes[1].X - nodes[0].X));
+                if (arg2 == 1)
+                    sa.xEntry = 1;
+                else
+                    sa.xEntry = -1;
+            }
+            else
+                sa.step++;
+        }
 
-			if (nodes[0].X > nodes[1].X)
-				fi += (float)Math.PI;
-			C[1] = new PointF(nodes[1].X - ArrowLength * (float)Math.Cos(fi), nodes[1].Y - ArrowLength * (float)Math.Sin(fi)); //O
-			C[0] = new PointF(C[1].X + ArrowWidth * (float)Math.Sin(fi), C[1].Y - ArrowWidth * (float)Math.Cos(fi));
-			C[1] = new PointF(C[1].X - ArrowWidth * (float)Math.Sin(fi), C[1].Y + ArrowWidth * (float)Math.Cos(fi));
+        private void AddEdge_X_1(int i)
+        {
+            ulong arg1 = gi.matrix[i] >> sa.ixes.strartIndex;
+            ulong arg2 = arg1 & 1;
 
-			C[0] = new PointF(center.X + C[0].X, center.Y + C[0].Y);
-			C[1] = new PointF(center.X + C[1].X, center.Y + C[1].Y);
-			nodes[0] = new PointF(center.X + nodes[0].X, center.Y + nodes[0].Y);
-			nodes[1] = new PointF(center.X + nodes[1].X, center.Y + nodes[1].Y);
+            arg1 = gi.matrix[i] | gi.matrix[sa.ixes.endIndex];
 
-			graph.FillPolygon(brush, new PointF[] { nodes[1], C[0], C[1] });
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "соответствующим вешинам '" + gi.nodesList[i] + " и " + gi.nodesList[sa.ixes.endIndex] + " побитовое ИЛИ: " + DecToBin(gi.matrix[i]) + " | " + DecToBin(gi.matrix[sa.ixes.endIndex]) + " = " + DecToBin(arg1) + " (" + arg1.ToString() + " в 10 с/с).\r\n\r\n");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "Применяем к значениям " + DecToBin(gi.matrix[i]) + " (" + gi.matrix[i].ToString() + " в 10 с/с) и " + DecToBin(gi.matrix[sa.ixes.endIndex]) + " (" + gi.matrix[sa.ixes.endIndex].ToString() + " в 10 с/с),");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Результат равен 1, следовательно из '" + gi.nodesList[i] + "' существует путь в '" + sa.nodes[0] + "', а значит кол-во путей из '" + gi.nodesList[i] + "' могло измениться.\r\n");
 
-			pen.Dispose();
-			brush.Dispose();
-		}
-	}
+            sa.xEntry = 2;
+        }
+
+        private void AddEdge_X_2(int i)
+        {
+            if (gi.AddSubEdge(sa.ixes, i))
+                trc.DrawRow(i, gi.matrix[i]);
+            TGraph_PictureBox.Refresh();
+
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Теперь из '" + gi.nodesList[i] + "' можно попасть в вершины, в которые можно попасть из '" + sa.nodes[sa.nodes.Length - 1] + "'.\r\n\r\n");
+
+            sa.xEntry = 0;
+            sa.step++;
+        }
+
+        private void AddEdge_X_0(int i)
+        {
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Результат равен 0, следовательно из '" + gi.nodesList[i] + "' не существует пути в '" + sa.nodes[0] + "', а значит кол-во путей из '" + gi.nodesList[i] + "' не меняется.\r\n\r\n");
+
+            sa.xEntry = 0;
+            sa.step++;
+        }
+
+        private void AddEdge_F()
+        {
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, ">>Матрица смежности транзитивного замыкания построена\r\n\r\n");
+            Step_TextBox.Text = Step_TextBox.Text.Insert(0, "=====================================================\r\n\r\n");
+
+            sa.isStep = false;
+            NextStep_Button.Visible = false;
+        }
+
+        private string DecToBin(ulong dec)
+        {
+            string str = "";
+            while (dec != 0)
+            {
+                str += (dec & 1).ToString();
+                dec = dec >> 1;
+            }
+
+            char[] ch = str.ToCharArray();
+            Array.Reverse(ch);
+            str = string.Join("", ch);
+
+            return (str != "") ? str : "0";
+        }
+        #endregion
+    }
 }
