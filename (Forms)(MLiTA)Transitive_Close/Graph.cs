@@ -11,7 +11,7 @@ namespace _Forms__MLiTA_Transitive_Close
         #region Global
         TransClose trc;
         Graphics graph;
-        static Graphics tgraph;
+        Graphics tgraph;
         GraphInfo gi;
         StepArgs sa = new StepArgs();
         #endregion
@@ -21,14 +21,18 @@ namespace _Forms__MLiTA_Transitive_Close
             public List<string> nodesList;
             public List<PointF> nodesCoords;
             public List<string> edges;
+            public Point center;
             public ulong[] matrix;
+            public bool isSpain;
 
-            public GraphInfo(List<string> nodesList, List<string> edges)
+            public GraphInfo(List<string> nodesList, List<string> edges, bool isSpain)
             {
                 this.nodesList = nodesList;
                 this.edges = edges;
                 matrix = new ulong[nodesList.Count];
                 nodesCoords = new List<PointF>(nodesList.Count);
+                center = new Point(200, 300);
+                this.isSpain = isSpain;
 
                 MatrixReflex();
                 MeasureMatrix();
@@ -49,9 +53,8 @@ namespace _Forms__MLiTA_Transitive_Close
             /// </summary>
             private void MeasureCoords()
             {
-                Point center = new Point(200, 200);
                 double fi = 2 * Math.PI / nodesList.Count;
-                int scale = 150;
+                int scale = 200;
 
                 for (int i = 0; i < nodesList.Count; i++)
                 {
@@ -135,7 +138,7 @@ namespace _Forms__MLiTA_Transitive_Close
             }
         }
 
-        public Graph(List<string> nodesList, List<string> edges)
+        public Graph(List<string> nodesList, List<string> edges, bool isSpain)
         {
             InitializeComponent();
 
@@ -145,27 +148,44 @@ namespace _Forms__MLiTA_Transitive_Close
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             //this.Size = new Size(500, 450);
 
-            gi = new GraphInfo(nodesList, edges);
+            gi = new GraphInfo(nodesList, edges, isSpain);
             trc = new TransClose(nodesList, gi.matrix);
             trc.Show();
         }
 
         private void Graph_PictureBox_Paint(object sender, PaintEventArgs e)
         {
+            const float beta = 0.2f;
+            const float step = 0.2f;
             graph = e.Graphics;
+            Pen pen1 = new Pen(Color.MediumAquamarine);
+            Pen pen2 = pen1;
+            Pen pen3 = new Pen(Color.Red);
 
             for (int i = 0; i < gi.edges.Count; i++)
             {
                 string[] nodes = gi.edges[i].Split(new char[] { '-', '>' });
-                DrawEdge(gi.nodesList.IndexOf(nodes[0]), gi.nodesList.IndexOf(nodes[nodes.Length - 1]), graph);
+                if (gi.isSpain)
+                {
+                    if ((((gi.matrix[gi.nodesList.IndexOf(nodes[nodes.Length - 1])]) >> gi.nodesList.IndexOf(nodes[0])) & 1) == 1)
+                        pen1 = new Pen(Color.MediumVioletRed);
+                    GraphicsExtension.DrawBSpline(graph, pen1, pen2, pen3, new PointF[] { gi.nodesCoords[gi.nodesList.IndexOf(nodes[0])], gi.center, gi.nodesCoords[gi.nodesList.IndexOf(nodes[nodes.Length - 1])] }, beta, step);
+                    pen1 = new Pen(Color.MediumAquamarine);
+                }
+                else
+                    DrawEdge(gi.nodesList.IndexOf(nodes[0]), gi.nodesList.IndexOf(nodes[nodes.Length - 1]), graph);
             }
             DrawNodes(graph);
         }
 
         private void TGraph_PictureBox_Paint(object sender, PaintEventArgs e)
         {
+            const float beta = 0.2f;
+            const float step = 0.2f;
             tgraph = e.Graphics;
-
+            Pen pen1 = new Pen(Color.MediumAquamarine);
+            Pen pen2 = pen1;
+            Pen pen3 = new Pen(Color.Red);
 
             for (int i = 0; i < gi.matrix.Length; i++)
             {
@@ -174,7 +194,15 @@ namespace _Forms__MLiTA_Transitive_Close
                 while (num != 0)
                 {
                     if ((i != k) && ((num & 1) == 1))
-                        DrawEdge(i, k, tgraph);
+                        if (gi.isSpain)
+                        {
+                            if (((gi.matrix[k] >> i) & 1) == 1)
+                                pen1 = new Pen(Color.MediumVioletRed);
+                            GraphicsExtension.DrawBSpline(tgraph, pen1, pen2, pen3, new PointF[] { gi.nodesCoords[i], gi.center, gi.nodesCoords[k] }, beta, step);
+                            pen1 = new Pen(Color.MediumAquamarine);
+                        }
+                        else
+                            DrawEdge(i, k, tgraph);
                     k++;
                     num = num >> 1;
                 }
@@ -246,6 +274,13 @@ namespace _Forms__MLiTA_Transitive_Close
 
             pen.Dispose();
             brush.Dispose();
+        }
+
+        public void ChangeVisual(bool isSpain)
+        {
+            gi.isSpain = isSpain;
+            Graph_PictureBox.Refresh();
+            TGraph_PictureBox.Refresh();
         }
 
         public void AddEdge(string edge)
@@ -410,4 +445,140 @@ namespace _Forms__MLiTA_Transitive_Close
         }
         #endregion
     }
+    #region B-Spain_Visualisation
+    static class GraphicsExtension
+    {
+        private static void DrawCubicCurve(this Graphics graphics, Pen pen, float beta, float step, PointF start, PointF end, float a3, float a2, float a1, float a0, float b3, float b2, float b1, float b0)
+        {
+            float xPrev, yPrev;
+            float xNext, yNext;
+            bool stop = false;
+
+            xPrev = beta * a0 + (1 - beta) * start.X;
+            yPrev = beta * b0 + (1 - beta) * start.Y;
+
+            for (float t = step; ; t += step)
+            {
+                if (stop)
+                    break;
+
+                if (t >= 1)
+                {
+                    stop = true;
+                    t = 1;
+                }
+
+                xNext = beta * (a3 * t * t * t + a2 * t * t + a1 * t + a0) + (1 - beta) * (start.X + (end.X - start.X) * t);
+                yNext = beta * (b3 * t * t * t + b2 * t * t + b1 * t + b0) + (1 - beta) * (start.Y + (end.Y - start.Y) * t);
+
+                graphics.DrawLine(pen, xPrev, yPrev, xNext, yNext);
+
+                xPrev = xNext;
+                yPrev = yNext;
+            }
+        }
+
+        internal static void DrawBSpline(this Graphics graphics, Pen pen1, Pen pen2, Pen pen3, PointF[] points, float beta, float step)
+        {
+            if (points == null)
+                throw new ArgumentNullException("The point array must not be null.");
+
+            if (beta < 0 || beta > 1)
+                throw new ArgumentException("The bundling strength must be >= 0 and <= 1.");
+
+            if (step <= 0 || step > 1)
+                throw new ArgumentException("The step must be > 0 and <= 1.");
+
+            if (points.Length <= 1)
+                return;
+
+            if (points.Length == 2)
+            {
+                graphics.DrawLine(pen1, points[0], points[1]);
+                return;
+            }
+
+            float a3, a2, a1, a0, b3, b2, b1, b0;
+            float deltaX = (points[points.Length - 1].X - points[0].X) / (points.Length - 1);
+            float deltaY = (points[points.Length - 1].Y - points[0].Y) / (points.Length - 1);
+            PointF start, end;
+
+            {
+                a0 = points[0].X;
+                b0 = points[0].Y;
+
+                a1 = points[1].X - points[0].X;
+                b1 = points[1].Y - points[0].Y;
+
+                a2 = 0;
+                b2 = 0;
+
+                a3 = (points[0].X - 2 * points[1].X + points[2].X) / 6;
+                b3 = (points[0].Y - 2 * points[1].Y + points[2].Y) / 6;
+
+                start = points[0];
+                end = new PointF
+                (
+                  points[0].X + deltaX,
+                  points[0].Y + deltaY
+                );
+
+                graphics.DrawCubicCurve(pen1, beta, step, start, end, a3, a2, a1, a0, b3, b2, b1, b0);
+            }
+
+            for (int i = 1; i < points.Length - 2; i++)
+            {
+                a0 = (points[i - 1].X + 4 * points[i].X + points[i + 1].X) / 6;
+                b0 = (points[i - 1].Y + 4 * points[i].Y + points[i + 1].Y) / 6;
+
+                a1 = (points[i + 1].X - points[i - 1].X) / 2;
+                b1 = (points[i + 1].Y - points[i - 1].Y) / 2;
+
+                a2 = (points[i - 1].X - 2 * points[i].X + points[i + 1].X) / 2;
+                b2 = (points[i - 1].Y - 2 * points[i].Y + points[i + 1].Y) / 2;
+
+                a3 = (-points[i - 1].X + 3 * points[i].X - 3 * points[i + 1].X + points[i + 2].X) / 6;
+                b3 = (-points[i - 1].Y + 3 * points[i].Y - 3 * points[i + 1].Y + points[i + 2].Y) / 6;
+
+                start = new PointF
+                (
+                  points[0].X + deltaX * i,
+                  points[0].Y + deltaY * i
+                );
+
+                end = new PointF
+                (
+                  points[0].X + deltaX * (i + 1),
+                  points[0].Y + deltaY * (i + 1)
+                );
+
+                graphics.DrawCubicCurve(pen2, beta, step, start, end, a3, a2, a1, a0, b3, b2, b1, b0);
+            }
+
+            {
+                a0 = points[points.Length - 1].X;
+                b0 = points[points.Length - 1].Y;
+
+                a1 = points[points.Length - 2].X - points[points.Length - 1].X;
+                b1 = points[points.Length - 2].Y - points[points.Length - 1].Y;
+
+                a2 = 0;
+                b2 = 0;
+
+                a3 = (points[points.Length - 1].X - 2 * points[points.Length - 2].X + points[points.Length - 3].X) / 6;
+                b3 = (points[points.Length - 1].Y - 2 * points[points.Length - 2].Y + points[points.Length - 3].Y) / 6;
+
+                start = points[points.Length - 1];
+
+                end = new PointF
+                (
+                  points[0].X + deltaX * (points.Length - 2),
+                  points[0].Y + deltaY * (points.Length - 2)
+                );
+
+                graphics.DrawCubicCurve(pen3, beta, step, start, end, a3, a2, a1, a0, b3, b2, b1, b0);
+            }
+        }
+    }
+    #endregion
 }

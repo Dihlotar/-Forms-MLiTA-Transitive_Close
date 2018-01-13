@@ -244,7 +244,7 @@ namespace _Forms__MLiTA_Transitive_Close
         {
             if ((Nodes_DataGridView.Rows.Count != 0) && ((graph == null) || (!graph.Created) || (!graph.Visible)))
             {
-                graph = new Graph(nodesList, edges);
+                graph = new Graph(nodesList, edges, Visual_CheckBox.Checked);
                 graph.Show();
             }
 
@@ -340,6 +340,12 @@ namespace _Forms__MLiTA_Transitive_Close
                     edges.RemoveAt(i);
                     i--;
                 }
+        }
+
+        private void Visual_CheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if ((graph != null) && graph.Created && graph.Visible)
+                graph.ChangeVisual(Visual_CheckBox.Checked);
         }
     }
 }

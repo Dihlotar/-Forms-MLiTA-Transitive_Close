@@ -87,7 +87,7 @@ namespace _Forms__MLiTA_Transitive_Close
 
         private void TransClose_SizeChanged(object sender, EventArgs e)
         {
-            FormSizeChanged(false);
+            //FormSizeChanged(false);
         }
 
         private void FormSizeChanged(bool isFormSize)

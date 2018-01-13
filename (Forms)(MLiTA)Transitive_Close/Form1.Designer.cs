@@ -44,6 +44,7 @@
             this.DeleteAllNodes_Button = new System.Windows.Forms.Button();
             this.NodeErrorInput_Label = new System.Windows.Forms.Label();
             this.Step_CheckBox = new System.Windows.Forms.CheckBox();
+            this.Visual_CheckBox = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.Edges_DataGridView)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.Nodes_DataGridView)).BeginInit();
             this.SuspendLayout();
@@ -210,14 +211,31 @@
             this.Step_CheckBox.Name = "Step_CheckBox";
             this.Step_CheckBox.Size = new System.Drawing.Size(62, 21);
             this.Step_CheckBox.TabIndex = 10;
+            this.Step_CheckBox.TabStop = false;
             this.Step_CheckBox.Text = "Шаги";
             this.Step_CheckBox.UseVisualStyleBackColor = true;
+            // 
+            // Visual_CheckBox
+            // 
+            this.Visual_CheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.Visual_CheckBox.AutoSize = true;
+            this.Visual_CheckBox.Checked = true;
+            this.Visual_CheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.Visual_CheckBox.Location = new System.Drawing.Point(128, 573);
+            this.Visual_CheckBox.Name = "Visual_CheckBox";
+            this.Visual_CheckBox.Size = new System.Drawing.Size(176, 21);
+            this.Visual_CheckBox.TabIndex = 11;
+            this.Visual_CheckBox.TabStop = false;
+            this.Visual_CheckBox.Text = "B-Spain визуализация";
+            this.Visual_CheckBox.UseVisualStyleBackColor = true;
+            this.Visual_CheckBox.CheckedChanged += new System.EventHandler(this.Visual_CheckBox_CheckedChanged);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(509, 612);
+            this.Controls.Add(this.Visual_CheckBox);
             this.Controls.Add(this.Step_CheckBox);
             this.Controls.Add(this.NodeErrorInput_Label);
             this.Controls.Add(this.DeleteAllNodes_Button);
@@ -260,6 +278,7 @@
         private System.Windows.Forms.Button DeleteAllNodes_Button;
         private System.Windows.Forms.Label NodeErrorInput_Label;
         private System.Windows.Forms.CheckBox Step_CheckBox;
+        private System.Windows.Forms.CheckBox Visual_CheckBox;
     }
 }
 
